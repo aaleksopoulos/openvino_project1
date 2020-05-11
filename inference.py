@@ -42,7 +42,7 @@ class Network:
         self.output_blob = None
         self.exec_network = None
 
-    def load_model(self, device='CPU', model_xml, cpu_extension=None):
+    def load_model(self, device, model_xml, cpu_extension):
         ### TODO: Load the model ###
         ### TODO: Check for supported layers ###
         ### TODO: Add any necessary extensions ###
@@ -57,13 +57,27 @@ class Network:
 
         #initialize the Inference Engine (NOTE using the 2019R3 version of OPENVino, as stated in the exercise)
         self.core = IECore()
+  
+        #initialize the Network (NOTE in the 2020R1 version of OPENVino, can be used from the IECore)
+        self.network = IENetwork(model=model_xml, weights=model_bin)
+
+        #check if there are any unsupported layers
+        unsupported_layers = get_unsupported_layers()
+
+        #if there are any unsupported layers, add CPU extension, if avaiable
+        if (len(unsupported_layers)>0) and (device=='CPU'):
+            print("There are unsupported layers found, will try to add CPU extension...")
+            self.core.add_extension(cpu_extension=cpu_extension, device=device)
 
         #add, if provided, a cpu extension
         if (cpu_extension):
             self.core.add_extension(cpu_extension)
-        
-        #initialize the Network (NOTE in the 2020R1 version of OPENVino, can be used from the IECore)
-        self.network = IENetwork(model=model_xml, weights=model_bin)
+
+        #recheck for unsupported layers, and exit if there are any
+        unsupported_layers = get_unsupported_layers()
+        if (len(unsupported_layers)>0):
+            print("After adding CPU extension, there are still unsupported layers, exiting...")
+            exit(1)
 
         #load to network to get the executable network
         self.exec_network = self.core.load_network(self.network, device)
@@ -99,3 +113,16 @@ class Network:
         result = self.exec_network.requests[request_id].outputs[self.output_blob]
         #print(self.exec_network.requests[request_id].latency)
         return result
+
+    def get_unsupported_layers(self):
+        #get a list of the supported layers
+        supported_layers = self.core.query_network(self.network, device_name=device)
+        #get the required layers
+        required_layers = list(self.network.layers.keys())
+        #check if there are unsupported layers
+        unsupported_layers = []
+        for layer in required_layers:
+            if layer not in supported_layers:
+                unsupported_layers.append(layer)
+
+        return unsupported_layers

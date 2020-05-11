@@ -40,6 +40,11 @@ MQTT_HOST = IPADDRESS
 MQTT_PORT = 3001
 MQTT_KEEPALIVE_INTERVAL = 60
 
+#NOTE Only applicable in the case of OPENVino version 2019R3 and lower
+if (platform.system() == 'Windows'):
+    CPU_EXTENSION = "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\inference_engine\\bin\intel64\Release\cpu_extension_avx2.dll"
+else:
+    CPU_EXTENSION = "/opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/libcpu_extension_sse4.so"
 
 def build_argparser():
     """
@@ -70,7 +75,8 @@ def build_argparser():
 
 def connect_mqtt():
     ### TODO: Connect to the MQTT client ###
-    client = None
+    client = mqtt.Client()
+    client.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE_INTERVAL)
 
     return client
 
@@ -90,7 +96,7 @@ def infer_on_stream(args, client):
     prob_threshold = args.prob_threshold
 
     ### TODO: Load the model through `infer_network` ###
-
+    infer_network.load_model(device=args.d, model_xml=args.m, cpu_extension=None)
     ### TODO: Handle the input stream ###
 
     ### TODO: Loop until stream is over ###
