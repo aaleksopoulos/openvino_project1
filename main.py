@@ -33,6 +33,8 @@ import paho.mqtt.client as mqtt
 from argparse import ArgumentParser
 from inference import Network
 
+import platform
+
 # MQTT server environment variables
 HOSTNAME = socket.gethostname()
 IPADDRESS = socket.gethostbyname(HOSTNAME)
@@ -43,7 +45,9 @@ MQTT_KEEPALIVE_INTERVAL = 60
 #NOTE Only applicable in the case of OPENVino version 2019R3 and lower
 if (platform.system() == 'Windows'):
     CPU_EXTENSION = "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\inference_engine\\bin\intel64\Release\cpu_extension_avx2.dll"
-else:
+elif (platform.system() == 'Darwin'): #MAC
+    CPU_EXTENSION = "/opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/libcpu_extension.dylib"
+else: #Linux, only the case of sse
     CPU_EXTENSION = "/opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/libcpu_extension_sse4.so"
 
 def build_argparser():
@@ -55,8 +59,8 @@ def build_argparser():
     parser = ArgumentParser()
     parser.add_argument("-m", "--model", required=True, type=str,
                         help="Path to an xml file with a trained model.")
-    parser.add_argument("-i", "--input", required=True, type=str,
-                        help="Path to image or video file")
+    parser.add_argument("-i", "--input", required=True, type=str, 
+                        help="Path to image or video file, CAM if you want to use camera as input")
     parser.add_argument("-l", "--cpu_extension", required=False, type=str,
                         default=None,
                         help="MKLDNN (CPU)-targeted custom layers."
@@ -98,7 +102,23 @@ def infer_on_stream(args, client):
     ### TODO: Load the model through `infer_network` ###
     infer_network.load_model(device=args.d, model_xml=args.m, cpu_extension=None)
     ### TODO: Handle the input stream ###
+    isImage = None #placeholder to check if we have an image of video input
+    if (args.i).lower()=='cam':
+        isImage = False
+        args.i = 0
+    elif (args.i).endswith('.jpg') or (args.i).endswith('bmp'):
+        isImage = True #input is image
+    else:
+        isImage = False #we have a video stream as input
+    
+    inp = cv2.VideoCapture(args.i)
+    inp.open(args.i)
 
+    if isImage:
+        vid_capt = None
+    else:
+        vid_capt = cv2.VideoWriter('output_video.mp4', 0x00000021, 30, (100,100))
+        
     ### TODO: Loop until stream is over ###
 
         ### TODO: Read from the video capture ###
