@@ -94,6 +94,21 @@ def preprocess_frame(frame, width, height):
     frame = frame.transpose((2,0,1))
     return frame.reshape(1, 3, width, height)
 
+def get_results(frame, counter, prob_threshold, widht, height):
+    timestamp = counter/10
+    
+    for fr in frame:
+
+        if (fr[0][0][2]>prob_threshold): #if what we detected is indeed person and the probability is above the one stated
+            print("time = ", timestamp)
+            x1 = int(fr[0][0][3]*widht)
+            y1 = int(fr[0][0][4]*height)
+            x2 = int(fr[0][0][5]*widht)
+            y2 = int(fr[0][0][6]*height)
+            #print(fr[0][0])
+            cv2.rectangle(frame, (x1, y1), (x2,y2), (0,255,255),1)
+    return frame
+
 def infer_on_stream(args, client):
     """
     Initialize the inference network, stream video to network,
@@ -130,11 +145,6 @@ def infer_on_stream(args, client):
     inp = cv2.VideoCapture(args.input)
     inp.open(args.input)
 
-    if isImage:
-        vid_capt = None
-    else:
-        vid_capt = cv2.VideoWriter('output_video.mp4', 0x00000021, 30, (100,100))
-
     #get the shape of the input
     width = int(inp.get(3))
     height = int(inp.get(4))
@@ -148,21 +158,42 @@ def infer_on_stream(args, client):
         print("input_shape: ", net_input_shape)
         print("input_shape width: ", net_input_shape[2])
         print("input_shape height: ", net_input_shape[3] )
-        
+
+    if isImage:
+        vid_capt = None
+    else:
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        vid_capt = cv2.VideoWriter('output_video.mp4', fourcc, 25, (width,height))
+
+
+    request_id = 0
+    counter = 0
     ### TODO: Loop until stream is over ###
-
-        ### TODO: Read from the video capture ###
-
-        ### TODO: Pre-process the image as needed ###
-
-        ### TODO: Start asynchronous inference for specified request ###
-
+    while inp.isOpened():
+        
+    ### TODO: Read from the video capture ###
+        flag, frame = inp.read()
+        if not flag:
+            break #video ended
+        
+        #to cancel easily
+        key_pressed = cv2.waitKey(60)
+        if key_pressed == 27:
+            break 
+        counter +=1
+    ### TODO: Pre-process the image as needed ###
+        prep_frame = preprocess_frame(frame, net_input_shape[2], net_input_shape[3])
+    ### TODO: Start asynchronous inference for specified request ###
+        infer_network.exec_net(image=prep_frame,request_id=request_id)
         ### TODO: Wait for the result ###
-
+        if infer_network.wait(request_id=request_id)==0:
+            output = infer_network.get_output(request_id=request_id)
+            #if DEBUG:
+                #print(output)
             ### TODO: Get the results of the inference request ###
-
+            out_frame = get_results(output, counter, prob_threshold, width, height)
             ### TODO: Extract any desired stats from the results ###
-
+        vid_capt.write(out_frame)
             ### TODO: Calculate and send relevant information on ###
             ### current_count, total_count and duration to the MQTT server ###
             ### Topic "person": keys of "count" and "total" ###
@@ -171,7 +202,9 @@ def infer_on_stream(args, client):
         ### TODO: Send the frame to the FFMPEG server ###
 
         ### TODO: Write an output image if `single_image_mode` ###
-
+    vid_capt.release()
+    inp.release()
+    cv2.destroyAllWindows()
 
 def main():
     """
