@@ -27,6 +27,7 @@ import sys
 import logging as log
 from openvino.inference_engine import IENetwork, IECore
 
+DEBUG = True
 
 class Network:
     """
@@ -42,6 +43,19 @@ class Network:
         self.output_blob = None
         self.exec_network = None
 
+    def get_unsupported_layers(self, device):
+        #get a list of the supported layers
+        supported_layers = self.core.query_network(self.network, device_name=device)
+        #get the required layers
+        required_layers = list(self.network.layers.keys())
+        #check if there are unsupported layers
+        unsupported_layers = []
+        for layer in required_layers:
+            if layer not in supported_layers:
+                unsupported_layers.append(layer)
+
+        return unsupported_layers
+
     def load_model(self, device, model_xml, cpu_extension):
         ### TODO: Load the model ###
         ### TODO: Check for supported layers ###
@@ -49,8 +63,13 @@ class Network:
         ### TODO: Return the loaded inference plugin ###
         ### Note: You may need to update the function parameters. ###
         #check if we have provided a valid file for the xml
-        if (model_xml.endsWith('.xml') and (os.path.exists(model_xml)):
-            model_bin = model_xml.replace('.xlm', '.bin') #get the model bin
+        if (model_xml.endswith('.xml')) and (os.path.exists(model_xml)):
+            model_bin = model_xml.replace('.xml', '.bin') #get the model bin
+            if DEBUG:
+                print("model found")
+                print("model_xml: ", model_xml)
+                print("model_bin: ", model_bin)
+                print("device: ", device)
         else:
             print("There was a problem reading the xml file provided, exiting...")
             exit(1)
@@ -62,7 +81,7 @@ class Network:
         self.network = IENetwork(model=model_xml, weights=model_bin)
 
         #check if there are any unsupported layers
-        unsupported_layers = get_unsupported_layers()
+        unsupported_layers = self.get_unsupported_layers(device)
 
         #if there are any unsupported layers, add CPU extension, if avaiable
         if (len(unsupported_layers)>0) and (device=='CPU'):
@@ -74,7 +93,7 @@ class Network:
             self.core.add_extension(cpu_extension)
 
         #recheck for unsupported layers, and exit if there are any
-        unsupported_layers = get_unsupported_layers()
+        unsupported_layers = self.get_unsupported_layers(device)
         if (len(unsupported_layers)>0):
             print("After adding CPU extension, there are still unsupported layers, exiting...")
             exit(1)
@@ -86,7 +105,7 @@ class Network:
         self.input_blob = next(iter(self.network.inputs))
         self.output_blob = next(iter(self.network.outputs))
 
-        return
+        return self.network
 
     def get_input_shape(self):
         ### TODO: Return the shape of the input layer ###
@@ -113,16 +132,3 @@ class Network:
         result = self.exec_network.requests[request_id].outputs[self.output_blob]
         #print(self.exec_network.requests[request_id].latency)
         return result
-
-    def get_unsupported_layers(self):
-        #get a list of the supported layers
-        supported_layers = self.core.query_network(self.network, device_name=device)
-        #get the required layers
-        required_layers = list(self.network.layers.keys())
-        #check if there are unsupported layers
-        unsupported_layers = []
-        for layer in required_layers:
-            if layer not in supported_layers:
-                unsupported_layers.append(layer)
-
-        return unsupported_layers

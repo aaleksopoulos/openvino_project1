@@ -42,6 +42,8 @@ MQTT_HOST = IPADDRESS
 MQTT_PORT = 3001
 MQTT_KEEPALIVE_INTERVAL = 60
 
+DEBUG = True #helper variable
+
 #NOTE Only applicable in the case of OPENVino version 2019R3 and lower
 if (platform.system() == 'Windows'):
     CPU_EXTENSION = "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\inference_engine\\bin\intel64\Release\cpu_extension_avx2.dll"
@@ -84,6 +86,13 @@ def connect_mqtt():
 
     return client
 
+def preprocess_frame(frame, width, height):
+    '''
+    Preprocess the image to fit the model
+    '''
+    frame = cv2.resize(frame, (width, height))
+    frame = frame.transpose((2,0,1))
+    return frame.reshape(1, 3, width, height)
 
 def infer_on_stream(args, client):
     """
@@ -98,26 +107,47 @@ def infer_on_stream(args, client):
     infer_network = Network()
     # Set Probability threshold for detections
     prob_threshold = args.prob_threshold
+    if DEBUG:
+        print("probability threshold: ", prob_threshold)
+        print("device: ", args.device)
+        print("model_xml: ", args.model)        
 
     ### TODO: Load the model through `infer_network` ###
-    infer_network.load_model(device=args.d, model_xml=args.m, cpu_extension=None)
+    infer_network.load_model(device=args.device, model_xml=args.model, cpu_extension=None)
     ### TODO: Handle the input stream ###
     isImage = None #placeholder to check if we have an image of video input
-    if (args.i).lower()=='cam':
+    if (args.input).lower()=='cam':
         isImage = False
-        args.i = 0
-    elif (args.i).endswith('.jpg') or (args.i).endswith('bmp'):
+        args.input = 0
+    elif (args.input).endswith('.jpg') or (args.input).endswith('bmp'):
         isImage = True #input is image
     else:
         isImage = False #we have a video stream as input
     
-    inp = cv2.VideoCapture(args.i)
-    inp.open(args.i)
+    if DEBUG:
+        print("args.input: ", args.input)
+
+    inp = cv2.VideoCapture(args.input)
+    inp.open(args.input)
 
     if isImage:
         vid_capt = None
     else:
         vid_capt = cv2.VideoWriter('output_video.mp4', 0x00000021, 30, (100,100))
+
+    #get the shape of the input
+    width = int(inp.get(3))
+    height = int(inp.get(4))
+    if DEBUG:
+        print("input image widht: ", width)
+        print("input image height: ", height)
+
+    #get the input shape of the networkd
+    net_input_shape = infer_network.get_input_shape()
+    if DEBUG:
+        print("input_shape: ", net_input_shape)
+        print("input_shape width: ", net_input_shape[2])
+        print("input_shape height: ", net_input_shape[3] )
         
     ### TODO: Loop until stream is over ###
 
@@ -151,6 +181,8 @@ def main():
     """
     # Grab command line args
     args = build_argparser().parse_args()
+    if DEBUG:
+        print('args: ', args)
     # Connect to the MQTT server
     client = connect_mqtt()
     # Perform inference on the input stream
