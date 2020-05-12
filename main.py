@@ -94,20 +94,21 @@ def preprocess_frame(frame, width, height):
     frame = frame.transpose((2,0,1))
     return frame.reshape(1, 3, width, height)
 
-def get_results(frame, counter, prob_threshold, widht, height):
+def get_results(in_frame, out_frame, counter, prob_threshold, widht, height):
     timestamp = counter/10
     
-    for fr in frame:
-
-        if (fr[0][0][2]>prob_threshold): #if what we detected is indeed person and the probability is above the one stated
+    for fr in out_frame:
+        if (fr[0][0][0] == -1): #if we have not detected anything, we break out
+            break
+        if (fr[0][0][2]>prob_threshold) and (fr[0][0][0]==0): #if what we detected is indeed person and the probability is above the one stated
             print("time = ", timestamp)
             x1 = int(fr[0][0][3]*widht)
             y1 = int(fr[0][0][4]*height)
             x2 = int(fr[0][0][5]*widht)
             y2 = int(fr[0][0][6]*height)
             #print(fr[0][0])
-            cv2.rectangle(frame, (x1, y1), (x2,y2), (0,255,255),1)
-    return frame
+            cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
+    return in_frame
 
 def infer_on_stream(args, client):
     """
@@ -191,7 +192,7 @@ def infer_on_stream(args, client):
             #if DEBUG:
                 #print(output)
             ### TODO: Get the results of the inference request ###
-            out_frame = get_results(output, counter, prob_threshold, width, height)
+            out_frame = get_results(frame, output, counter, prob_threshold, width, height)
             ### TODO: Extract any desired stats from the results ###
         vid_capt.write(out_frame)
             ### TODO: Calculate and send relevant information on ###
@@ -212,6 +213,8 @@ def main():
 
     :return: None
     """
+    #to calculate execution time
+    start_time = time.time()
     # Grab command line args
     args = build_argparser().parse_args()
     if DEBUG:
@@ -220,6 +223,9 @@ def main():
     client = connect_mqtt()
     # Perform inference on the input stream
     infer_on_stream(args, client)
+    
+    elapsed_time = time.time() - start_time
+    print("total execution time in secs: ", elapsed_time)
 
 
 if __name__ == '__main__':
