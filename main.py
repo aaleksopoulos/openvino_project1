@@ -115,6 +115,72 @@ def getDistance(x1, y1, centroid):
         print("--------------------------")
     return dist
 
+def update_persons2(persons, tracked_list):
+    #if it is the 1st person we encounter, add it to the person's list
+    if len(persons)==0:
+        for i in range(len(tracked_list)):
+            x1 = tracked_list[i][0]
+            y1 = tracked_list[i][1]
+            x2 = tracked_list[i][2]
+            y2 = tracked_list[i][3]
+            p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2)
+            persons.append(p)
+            if DEBUG:
+                print(p.toString())
+                print("person's centroid: ", p.getCentroid())
+    else:
+        #first check for the tracked persons, if we can update it to new location
+        for person in persons:
+            if len(tracked_list)>0 and person.isTracked():
+                centr_dist = []
+                for i in range(len(tracked_list)):
+                    x1 = tracked_list[i][0]
+                    y1 = tracked_list[i][1]
+                    x2 = tracked_list[i][2]
+                    y2 = tracked_list[i][3]
+                    if DEBUG:
+                        print("------ in update person -------")
+                        print(" x1: ", x1)
+                        print(" x2: ", x2)
+                        print(" y1: ", y1)
+                        print(" y2: ", y2)
+                        print("-------------------------------")
+                    
+                    #calculate the centroid distance
+                    dist = getDistance((x1+x2)/2, (y1+y2)/2, person.getCentroid())
+                    #add it to the centr_dist
+                    centr_dist.append(dist)
+                    if DEBUG:
+                        print("centr_dist: ", centr_dist)
+                min_centr_dist = min(centr_dist)
+                min_pos = centr_dist.index(min_centr_dist)
+                if DEBUG:
+                    print("min_centr_dist: ", min_centr_dist)
+                    print("index of it: ", min_pos)
+                if min_centr_dist<80:
+                    person.setX1(x1)
+                    person.setX2(x2)
+                    person.setY1(y1)
+                    person.setY2(y2)
+                    person.updateCentroid()
+                    tracked_list.pop(min_pos)
+                    if DEBUG:
+                        print("tracked_list_after_removal: ", tracked_list)
+                else:
+                    person.setTracked(False) #we have lost track of that person
+        #everything else that is in the tracked list, we add it a new person
+        for i in range(len(tracked_list)):
+            x1 = tracked_list[i][0]
+            y1 = tracked_list[i][1]
+            x2 = tracked_list[i][2]
+            y2 = tracked_list[i][3]
+            p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2)
+            persons.append(p)
+            if DEBUG:
+                print(p.toString())
+                print("person's centroid: ", p.getCentroid())           
+
+
 def update_persons(persons, tracked_list):
     tmp_list = []
     for item in tracked_list:
@@ -195,7 +261,7 @@ def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, per
                 print("calucalated y2: ", y2)
                 print("--------------------------")
             tracked_list.append([x1, y1, x2, y2])
-            update_persons(persons, tracked_list)
+            update_persons2(persons, tracked_list)
 
             #print(fr[0][0])
             cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
