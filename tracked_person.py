@@ -3,7 +3,7 @@ class Tracked_Person():
     Keeps track of the tracked person
     '''
     _class_counter = 0
-    def __init__(self, x1, x2, y1, y2, maxDisappearedFrames=50):
+    def __init__(self, x1, x2, y1, y2, frame_in=-1, frame_out=-1, alert=False):
         '''
         initialize the general object to be found
         '''
@@ -12,10 +12,10 @@ class Tracked_Person():
         self.__class__._class_counter +=1
         #to indicate if this person was tracked or not
         self.tracked = True
-        #to track how many frames we have lost the object
-        self.disappearedFrames = 0
-        #define how many frames must have passed to delete the object from the tracker, default 50
-        self.maxDisappearedFrames = maxDisappearedFrames
+        #at what frame we tracked the object, default -1
+        self.frame_in = -1
+        #at what frame we lost track of it, default -1
+        self.frame_out = -1
 
         #get the corner coordinates of each tracked bounding box
         self.x1 = x1
@@ -25,6 +25,9 @@ class Tracked_Person():
 
         #calculate the centroid of the person tracked
         self.centroid = (int((x1+x2)/2), int((y1+y2)/2))
+
+        #if the user in the frame for too long
+        self.alert = False
 
     def setX1(self, x1):
         self.x1 = x1
@@ -68,11 +71,17 @@ class Tracked_Person():
     def updateCentroid(self):
         self.centroid = (int((self.x1+self.x2)/2), int((self.y1+self.y2)/2))
 
-    def setDisappearedFames(self, disappearedFrames):
-        self.disappearedFrames = disappearedFrames
+    def setFrameIn(self, frame_in):
+        self.frame_in = frame_in
     
-    def getDisappearedFrames(self):
-        return self.disappearedFrames
+    def getFrameIn(self):
+        return self.frame_in
+
+    def setFrameOut(self, frame_out):
+        self.frame_out = frame_out
+    
+    def getFrameOut(self):
+        return self.frame_out
 
     def setPeronId(self,personId):
         self.personId = personId
@@ -83,3 +92,9 @@ class Tracked_Person():
     def toString(self):
         s = "Id:" + str(self.personId)
         return s
+
+    def setAlert(self, alert):
+        self.alert = alert
+    
+    def hasAlert(self):
+        return self.alert

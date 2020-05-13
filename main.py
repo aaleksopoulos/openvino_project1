@@ -115,7 +115,24 @@ def getDistance(x1, y1, centroid):
         print("--------------------------")
     return dist
 
-def update_persons2(persons, tracked_list):
+def draw_boxes(in_frame, persons):
+    color = (0,255,255)
+    for p in persons:
+        if p.hasAlert(): #if the user has an alert, it will have a red frame around him
+            color=(0,0,255)
+        #cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
+        x1 = p.getX1
+        y1 = p.getY1
+        x2 = p.getX2
+        y2 = p.getY2
+        #cv2.rectangle(in_frame, (x1, y1), (x2, y2), color, 1)
+        cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
+        if DEBUG:
+            print("len of persons list: ", len(persons))
+            if p.isTracked():
+                cv2.putText(img=in_frame, text=p.toString(), org=p.getCentroid(), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=color, thickness=1)
+
+def update_persons2(persons, tracked_list, counter):
     #if it is the 1st person we encounter, add it to the person's list
     if len(persons)==0:
         for i in range(len(tracked_list)):
@@ -123,7 +140,7 @@ def update_persons2(persons, tracked_list):
             y1 = tracked_list[i][1]
             x2 = tracked_list[i][2]
             y2 = tracked_list[i][3]
-            p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2)
+            p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2, frame_in=counter)
             persons.append(p)
             if DEBUG:
                 print(p.toString())
@@ -132,6 +149,11 @@ def update_persons2(persons, tracked_list):
         #first check for the tracked persons, if we can update it to new location
         for person in persons:
             if len(tracked_list)>0 and person.isTracked():
+                #check if the person is too long (above 15 secs) in the scene
+                time_in_scene = (counter-person.getFrameIn())/10
+                if time_in_scene > 15:
+                    print("The person " , person.toString() , " is in scene for " , time_in_scene , ' secs.')
+                    person.setAlert(True)
                 centr_dist = []
                 for i in range(len(tracked_list)):
                     x1 = tracked_list[i][0]
@@ -168,13 +190,14 @@ def update_persons2(persons, tracked_list):
                         print("tracked_list_after_removal: ", tracked_list)
                 else:
                     person.setTracked(False) #we have lost track of that person
+                    person.setFrameOut(counter)
         #everything else that is in the tracked list, we add it a new person
         for i in range(len(tracked_list)):
             x1 = tracked_list[i][0]
             y1 = tracked_list[i][1]
             x2 = tracked_list[i][2]
             y2 = tracked_list[i][3]
-            p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2)
+            p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2, frame_in=counter)
             persons.append(p)
             if DEBUG:
                 print(p.toString())
@@ -261,22 +284,19 @@ def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, per
                 print("calucalated y2: ", y2)
                 print("--------------------------")
             tracked_list.append([x1, y1, x2, y2])
-            update_persons2(persons, tracked_list)
+            #update_persons(persons, tracked_list)
+            update_persons2(persons, tracked_list, counter)
 
             #print(fr[0][0])
             cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
-        if DEBUG:
-            print("len of persons list: ", len(persons))
-            for p in persons:
-                if p.isTracked():
-                    cv2.putText(img=in_frame, text=p.toString(), org=p.getCentroid(), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,255,255), thickness=1)
+            
     
         if DEBUG:
             print("--- printing persons ----")
             for p in persons:
                 print(p.toString())
             print("-------------------------")
-
+    #draw_boxes(in_frame, persons)
 
     return in_frame
 
