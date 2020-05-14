@@ -2,8 +2,9 @@ class Tracked_Person():
     '''
     Keeps track of the tracked person
     '''
+    FRAMERATE = 10
     _class_counter = 0
-    def __init__(self, x1, x2, y1, y2, frame_in=-1, frame_out=-1, alert=False, disappearedFrames=0, _maxDisappearedFrames=850):
+    def __init__(self, x1, x2, y1, y2, frame_in=-1, frame_out=-1, alert=False, disappearedFrames=0, _maxDisappearedFrames=85*FRAMERATE):
         '''
         initialize the general object to be found
         '''
@@ -29,7 +30,7 @@ class Tracked_Person():
         #if the user in the frame for too long
         self.alert = alert
 
-        #how many frames the person has been disappeared from the list (default 850)
+        #how many frames the person has been disappeared from the list (default 8.5 secs)
         self.disappearedFrames = disappearedFrames
 
         #number of frames to delete the current person

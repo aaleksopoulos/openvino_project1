@@ -45,6 +45,7 @@ MQTT_PORT = 3001
 MQTT_KEEPALIVE_INTERVAL = 60
 
 DEBUG = True #helper variable
+FRAMERATE = Tracked_Person.FRAMERATE
 
 #NOTE Only applicable in the case of OPENVino version 2019R3 and lower
 if (platform.system() == 'Windows'):
@@ -148,7 +149,7 @@ def update_persons2(persons, tracked_list, counter):
         for person in persons:
             if len(tracked_list)>0 and person.isTracked():
                 #check if the person is too long (above 15 secs) in the scene
-                time_in_scene = (counter-person.getFrameIn())/10
+                time_in_scene = (counter-person.getFrameIn())/FRAMERATE
                 if DEBUG:
                     print("=============================================================")
                     print("counter: ", counter)
@@ -196,8 +197,6 @@ def update_persons2(persons, tracked_list, counter):
                 else:
                     person.setTracked(False) #we have lost track of that person
                     person.setFrameOut(counter)
-                    #person.setDisappearedFrames(1)
-
                     
         #everything else that is in the tracked list, we add it a new person
         for i in range(len(tracked_list)):
@@ -238,7 +237,7 @@ def update_persons2(persons, tracked_list, counter):
             print("the person is missing for: " , p.getDisappearedFrames())
         print("-------------------------")    
     
-
+    #removing the person from the tracked list
     for rp in persons_to_remove:
         persons.remove(rp)
         if DEBUG:
