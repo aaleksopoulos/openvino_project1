@@ -196,7 +196,7 @@ def update_persons2(persons, tracked_list, counter):
                 else:
                     person.setTracked(False) #we have lost track of that person
                     person.setFrameOut(counter)
-                    person.setDisappearedFrames(1)
+                    #person.setDisappearedFrames(1)
 
                     
         #everything else that is in the tracked list, we add it a new person
@@ -212,13 +212,18 @@ def update_persons2(persons, tracked_list, counter):
                 print("person's centroid: ", p.getCentroid())       
     
     #update the disappeared value
+    if DEBUG:
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        print('~~~~~~~~~~~~~ check if disappeared ~~~~~~~~~~~~~~')
     for person in persons:
-        if not person.isTracked() and person.getDisappearedFrames()>0:
-            
+        #if not person.isTracked() and person.getDisappearedFrames()>0:
+        if not person.isTracked():   
             dis_frames = counter - person.getFrameOut() + 1
             if DEBUG:
+                print("checking person: ", person.toString())
                 print("person.getFrameOut: " , person.getFrameOut())
                 print("disappeared Frames: " , dis_frames)
+                print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
             #remove the person if it was not found over a number of frames
             if(dis_frames > person._maxDisappearedFrames):
