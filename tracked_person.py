@@ -3,7 +3,7 @@ class Tracked_Person():
     Keeps track of the tracked person
     '''
     _class_counter = 0
-    def __init__(self, x1, x2, y1, y2, frame_in=-1, frame_out=-1, alert=False):
+    def __init__(self, x1, x2, y1, y2, frame_in=-1, frame_out=-1, alert=False, disappearedFrames=0, _maxDisappearedFrames=1000):
         '''
         initialize the general object to be found
         '''
@@ -13,9 +13,9 @@ class Tracked_Person():
         #to indicate if this person was tracked or not
         self.tracked = True
         #at what frame we tracked the object, default -1
-        self.frame_in = -1
+        self.frame_in = frame_in
         #at what frame we lost track of it, default -1
-        self.frame_out = -1
+        self.frame_out = frame_out
 
         #get the corner coordinates of each tracked bounding box
         self.x1 = x1
@@ -27,7 +27,13 @@ class Tracked_Person():
         self.centroid = (int((x1+x2)/2), int((y1+y2)/2))
 
         #if the user in the frame for too long
-        self.alert = False
+        self.alert = alert
+
+        #how many frames the person has been disappeared from the list (default 1000)
+        self.disappearedFrames = disappearedFrames
+
+        #number of frames to delete the current person
+        self._maxDisappearedFrames = _maxDisappearedFrames
 
     def setX1(self, x1):
         self.x1 = x1
@@ -98,3 +104,9 @@ class Tracked_Person():
     
     def hasAlert(self):
         return self.alert
+
+    def setDisappearedFrames(self, disappearedFrames):
+        self.disappearedFrames = disappearedFrames
+    
+    def getDisappearedFrames(self):
+        return self.disappearedFrames

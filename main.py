@@ -116,23 +116,21 @@ def getDistance(x1, y1, centroid):
     return dist
 
 def draw_boxes(in_frame, persons):
-    color = (0,255,255)
+    
     for p in persons:
-        if p.hasAlert(): #if the user has an alert, it will have a red frame around him
-            color=(0,0,255)
-        #cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
-        x1 = p.getX1
-        y1 = p.getY1
-        x2 = p.getX2
-        y2 = p.getY2
-        #cv2.rectangle(in_frame, (x1, y1), (x2, y2), color, 1)
-        cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
-        if DEBUG:
-            print("len of persons list: ", len(persons))
-            if p.isTracked():
-                cv2.putText(img=in_frame, text=p.toString(), org=p.getCentroid(), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=color, thickness=1)
+        if p.isTracked():
+            if p.hasAlert(): #if the user has an alert, it will have a red frame around him
+                color=(0,0,255)
+            else:
+                color = (0,255,255)
+            cv2.rectangle(in_frame, (p.getX1(),p.getY1()), (p.getX2(),p.getY2()), color,1)
+            if DEBUG:
+                print("len of persons list: ", len(persons))
+                if p.isTracked():
+                    cv2.putText(img=in_frame, text=p.toString(), org=p.getCentroid(), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=color, thickness=1)
 
 def update_persons2(persons, tracked_list, counter):
+    persons_to_remove = [] #placeholder
     #if it is the 1st person we encounter, add it to the person's list
     if len(persons)==0:
         for i in range(len(tracked_list)):
@@ -151,10 +149,17 @@ def update_persons2(persons, tracked_list, counter):
             if len(tracked_list)>0 and person.isTracked():
                 #check if the person is too long (above 15 secs) in the scene
                 time_in_scene = (counter-person.getFrameIn())/10
-                if time_in_scene > 15:
-                    print("The person " , person.toString() , " is in scene for " , time_in_scene , ' secs.')
+                if DEBUG:
+                    print("=============================================================")
+                    print("counter: ", counter)
+                    print("person.getFrameIn:", person.getFrameIn())
+                    print('time_in_scene: ', time_in_scene)
+                    if time_in_scene > 15:
+                        print("The person " , person.toString() , " is in scene for " , time_in_scene , ' secs.')
+                    print("=============================================================")
+                if time_in_scene > 10:
                     person.setAlert(True)
-                centr_dist = []
+                centr_dist = [] #placeholder to keep the centroid distance between this object and all the others that are tracked
                 for i in range(len(tracked_list)):
                     x1 = tracked_list[i][0]
                     y1 = tracked_list[i][1]
@@ -179,7 +184,7 @@ def update_persons2(persons, tracked_list, counter):
                 if DEBUG:
                     print("min_centr_dist: ", min_centr_dist)
                     print("index of it: ", min_pos)
-                if min_centr_dist<80:
+                if min_centr_dist<80: #the value was obtained based on current video input
                     person.setX1(x1)
                     person.setX2(x2)
                     person.setY1(y1)
@@ -191,6 +196,9 @@ def update_persons2(persons, tracked_list, counter):
                 else:
                     person.setTracked(False) #we have lost track of that person
                     person.setFrameOut(counter)
+                    person.setDisappearedFrames(1)
+
+                    
         #everything else that is in the tracked list, we add it a new person
         for i in range(len(tracked_list)):
             x1 = tracked_list[i][0]
@@ -201,7 +209,42 @@ def update_persons2(persons, tracked_list, counter):
             persons.append(p)
             if DEBUG:
                 print(p.toString())
-                print("person's centroid: ", p.getCentroid())           
+                print("person's centroid: ", p.getCentroid())       
+    
+    #update the disappeared value
+    for person in persons:
+        if not person.isTracked() and person.getDisappearedFrames()>0:
+            
+            dis_frames = counter - person.getFrameOut() + 1
+            if DEBUG:
+                print("person.getFrameOut: " , person.getFrameOut())
+                print("disappeared Frames: " , dis_frames)
+
+            #remove the person if it was not found over a number of frames
+            if(dis_frames > person._maxDisappearedFrames):
+                persons_to_remove.append(person)
+            else:
+                person.setDisappearedFrames(dis_frames)
+    if DEBUG:
+        print("len of persons list before delete is: ", len(persons))
+        print("--- printing persons ----")
+        for p in persons:
+            print(p.toString())
+            print("the person is missing for: " , p.getDisappearedFrames())
+        print("-------------------------")    
+    
+
+    for rp in persons_to_remove:
+        persons.remove(rp)
+        if DEBUG:
+            print("================================= deleteing person with id: ", rp.toString())
+
+    if DEBUG:
+        print("len of persons list after delete is: ", len(persons))
+        print("--- printing persons ----")
+        for p in persons:
+            print(p.toString())
+        print("-------------------------")  
 
 
 def update_persons(persons, tracked_list):
@@ -284,20 +327,13 @@ def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, per
                 print("calucalated y2: ", y2)
                 print("--------------------------")
             tracked_list.append([x1, y1, x2, y2])
-            #update_persons(persons, tracked_list)
+            #update_persons(persons, tracked_list) #function does not work well, kept for referencing
             update_persons2(persons, tracked_list, counter)
 
             #print(fr[0][0])
-            cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
+            #cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
+            draw_boxes(in_frame, persons)
             
-    
-        if DEBUG:
-            print("--- printing persons ----")
-            for p in persons:
-                print(p.toString())
-            print("-------------------------")
-    #draw_boxes(in_frame, persons)
-
     return in_frame
 
 def infer_on_stream(args, client):
