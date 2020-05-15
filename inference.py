@@ -27,7 +27,7 @@ import sys
 import logging as log
 from openvino.inference_engine import IENetwork, IECore
 
-DEBUG = True
+DEBUG = False
 
 class Network:
     """
@@ -105,7 +105,7 @@ class Network:
         self.input_blob = next(iter(self.network.inputs))
         self.output_blob = next(iter(self.network.outputs))
 
-        return self.network
+        return self.exec_network
 
     def get_input_shape(self):
         ### TODO: Return the shape of the input layer ###
@@ -116,7 +116,7 @@ class Network:
         ### TODO: Return any necessary information ###
         ### Note: You may need to update the function parameters. ###
         #requiest_id is set to zero, if not specified, for pseudo async mode
-        self.exec_net.start_async(request_id=request_id, inputs={self.input_blob:image})
+        self.exec_network.start_async(request_id=request_id, inputs={self.input_blob:image})
         return
 
     def wait(self, request_id=0):

@@ -34,6 +34,7 @@ from argparse import ArgumentParser
 from inference import Network
 from tracked_person import Tracked_Person
 from math import pow, sqrt
+from datetime import datetime
 
 import platform
 
@@ -44,7 +45,7 @@ MQTT_HOST = IPADDRESS
 MQTT_PORT = 3001
 MQTT_KEEPALIVE_INTERVAL = 60
 
-DEBUG = True #helper variable
+DEBUG = False #helper variable
 FRAMERATE = Tracked_Person.FRAMERATE
 
 #NOTE Only applicable in the case of OPENVino version 2019R3 and lower
@@ -318,12 +319,13 @@ def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, per
         if (fr[0][0][0] == -1): #if we have not detected anything, we break out
             break
         if (fr[0][0][2]>prob_threshold) and (fr[0][0][0]==0): #if what we detected is indeed person and the probability is above the one stated
-            print("---------------------------------------------------------time = ", timestamp)
+            
             x1 = int(fr[0][0][3]*widht)
             y1 = int(fr[0][0][4]*height)
             x2 = int(fr[0][0][5]*widht)
             y2 = int(fr[0][0][6]*height)
             if DEBUG:
+                print("---------------------------------------------------------time = ", timestamp)
                 print("--------------------------")
                 print("calucalated x1: ", x1)
                 print("calucalated x2: ", x2)
@@ -444,6 +446,8 @@ def main():
 
     :return: None
     """
+    dt = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    fw = open("run_metrics_" + dt + ".txt", 'w')
     #to calculate execution time
     start_time = time.time()
     # Grab command line args
@@ -458,8 +462,14 @@ def main():
     mem = memory_usage()
         
     elapsed_time = time.time() - start_time
-    print("total execution time in secs: ", elapsed_time)
-    print("and memory used in Mb: ", mem)
+    fw.write("=========================================\n")
+    fw.write("=============== run metrics =============\n")
+    fw.write("=========================================\n")
+    fw.write("|execution time (secs): |" + '{:07.3f}'.format(elapsed_time) + '\t|\n')
+    fw.write("|memory used (Mb): \t|" + str(mem) + '\t|\n')
+    fw.write("=========================================")
+
+    fw.close()
 
 
 if __name__ == '__main__':
