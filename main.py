@@ -45,7 +45,7 @@ MQTT_HOST = IPADDRESS
 MQTT_PORT = 3001
 MQTT_KEEPALIVE_INTERVAL = 60
 
-DEBUG = False #helper variable
+DEBUG = True #helper variable
 FRAMERATE = Tracked_Person.FRAMERATE
 
 #NOTE Only applicable in the case of OPENVino version 2019R3 and lower
@@ -131,8 +131,57 @@ def draw_boxes(in_frame, persons):
                 if p.isTracked():
                     cv2.putText(img=in_frame, text=p.toString(), org=p.getCentroid(), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=color, thickness=1)
 
-def update_persons2(persons, tracked_list, counter):
+def remove_persons(persons, counter):
     persons_to_remove = [] #placeholder
+
+    #update the disappeared value
+    if DEBUG:
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        print('~~~~~~~~~~~~~ check if disappeared ~~~~~~~~~~~~~~')
+    for person in persons:
+        #if not person.isTracked() and person.getDisappearedFrames()>0:
+        if not person.isTracked():   
+            dis_frames = counter - person.getFrameOut() + 1
+            if DEBUG:
+                print("checking person: ", person.toString())
+                print("person.getFrameOut: " , person.getFrameOut())
+                print("disappeared Frames: " , dis_frames)
+                print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+            #remove the person if it was not found over a number of frames
+            if(dis_frames > person._maxDisappearedFrames):
+                persons_to_remove.append(person)
+            else:
+                person.setDisappearedFrames(dis_frames)
+    if DEBUG:
+        print("len of persons list before delete is: ", len(persons))
+        print("--- printing persons ----")
+        for p in persons:
+            print(p.toString())
+            print("the person is missing for: " , p.getDisappearedFrames())
+        print("-------------------------")    
+
+
+    #removing the person from the tracked list
+    for rp in persons_to_remove:
+        persons.remove(rp)
+        if DEBUG:
+            print("================================= deleteing person with id: ", rp.toString())
+
+    if DEBUG:
+        print("len of persons list after delete is: ", len(persons))
+        print("--- printing persons ----")
+        for p in persons:
+            print(p.toString())
+        print("-------------------------")
+    return 
+
+def update_persons2(persons, tracked_list, counter, total_persons):
+    '''
+        Updates the person's list with any new person that was detected
+        and returns the number of persons that were deleted, based
+        on Tracked_Person class and the total counted persons on current frame
+    '''
     #if it is the 1st person we encounter, add it to the person's list
     if len(persons)==0:
         for i in range(len(tracked_list)):
@@ -145,10 +194,14 @@ def update_persons2(persons, tracked_list, counter):
             if DEBUG:
                 print(p.toString())
                 print("person's centroid: ", p.getCentroid())
+            counted_persons = 1
+            total_persons+=1
     else:
+        counted_persons = 0
         #first check for the tracked persons, if we can update it to new location
         for person in persons:
             if len(tracked_list)>0 and person.isTracked():
+                counted_persons+=1
                 #check if the person is too long (above 15 secs) in the scene
                 time_in_scene = (counter-person.getFrameIn())/FRAMERATE
                 if DEBUG:
@@ -207,50 +260,16 @@ def update_persons2(persons, tracked_list, counter):
             y2 = tracked_list[i][3]
             p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2, frame_in=counter)
             persons.append(p)
+            total_persons+=1
             if DEBUG:
                 print(p.toString())
                 print("person's centroid: ", p.getCentroid())       
-    
-    #update the disappeared value
+    #we could use the following fuction in order to remove some persons
+    # that are not in frame for 85 secs (as stated in the Tracked_Persons class)    
+    remove_persons(persons, counter)
     if DEBUG:
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        print('~~~~~~~~~~~~~ check if disappeared ~~~~~~~~~~~~~~')
-    for person in persons:
-        #if not person.isTracked() and person.getDisappearedFrames()>0:
-        if not person.isTracked():   
-            dis_frames = counter - person.getFrameOut() + 1
-            if DEBUG:
-                print("checking person: ", person.toString())
-                print("person.getFrameOut: " , person.getFrameOut())
-                print("disappeared Frames: " , dis_frames)
-                print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-
-            #remove the person if it was not found over a number of frames
-            if(dis_frames > person._maxDisappearedFrames):
-                persons_to_remove.append(person)
-            else:
-                person.setDisappearedFrames(dis_frames)
-    if DEBUG:
-        print("len of persons list before delete is: ", len(persons))
-        print("--- printing persons ----")
-        for p in persons:
-            print(p.toString())
-            print("the person is missing for: " , p.getDisappearedFrames())
-        print("-------------------------")    
-    
-    #removing the person from the tracked list
-    for rp in persons_to_remove:
-        persons.remove(rp)
-        if DEBUG:
-            print("================================= deleteing person with id: ", rp.toString())
-
-    if DEBUG:
-        print("len of persons list after delete is: ", len(persons))
-        print("--- printing persons ----")
-        for p in persons:
-            print(p.toString())
-        print("-------------------------")  
-
+        print("**************************** in update persons2 counted_persons:", counted_persons)
+    return counted_persons, total_persons
 
 def update_persons(persons, tracked_list):
     tmp_list = []
@@ -310,11 +329,10 @@ def update_persons(persons, tracked_list):
             persons.append(tmp_p)
     
 
-
-def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, persons):
+def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, persons, total_persons):
     timestamp = counter/10
     tracked_list = []
-    
+    counted_persons = 0
     for fr in out_frame:
         if (fr[0][0][0] == -1): #if we have not detected anything, we break out
             break
@@ -334,13 +352,12 @@ def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, per
                 print("--------------------------")
             tracked_list.append([x1, y1, x2, y2])
             #update_persons(persons, tracked_list) #function does not work well, kept for referencing
-            update_persons2(persons, tracked_list, counter)
+            counted_persons, total_persons = update_persons2(persons, tracked_list, counter, total_persons)
 
-            #print(fr[0][0])
             #cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
             draw_boxes(in_frame, persons)
             
-    return in_frame
+    return in_frame, total_persons, counted_persons
 
 def infer_on_stream(args, client):
     """
@@ -351,6 +368,7 @@ def infer_on_stream(args, client):
     :param client: MQTT client
     :return: None
     """
+
     # Initialise the class
     infer_network = Network()
     # Set Probability threshold for detections
@@ -402,6 +420,7 @@ def infer_on_stream(args, client):
     request_id = 0
     counter = 0
     persons = []
+    total_persons = 0
     ### TODO: Loop until stream is over ###
     while inp.isOpened():
         
@@ -425,20 +444,35 @@ def infer_on_stream(args, client):
             #if DEBUG:
                 #print(output)
             ### TODO: Get the results of the inference request ###
-            out_frame = get_results(frame, output, counter, prob_threshold, width, height, persons)
+            out_frame, total_persons, counted_persons = get_results(frame, output, counter, prob_threshold, width, height, persons, total_persons)
             ### TODO: Extract any desired stats from the results ###
-        vid_capt.write(out_frame)
+            vid_capt.write(out_frame)
             ### TODO: Calculate and send relevant information on ###
             ### current_count, total_count and duration to the MQTT server ###
             ### Topic "person": keys of "count" and "total" ###
             ### Topic "person/duration": key of "duration" ###
-
+            
+            if DEBUG:
+                print('======== MQTT ===========')
+                print("count: ", counted_persons)
+                print("total_count: ", total_persons)
+            client.publish("person", json.dumps({"count":counted_persons, "total":total_persons}))
+            for person in persons:
+                if person.isTracked():
+                    time = (counter-person.getFrameIn())/10
+                    if DEBUG:
+                        print("for person: ", person.toString(), " the time spent is: ", time)
+                    client.publish("person/duration", json.dumps({"duration":time}))
+            
+        
         ### TODO: Send the frame to the FFMPEG server ###
-
+        sys.stdout.buffer.write(out_frame)
+        sys.stdout.flush()
         ### TODO: Write an output image if `single_image_mode` ###
     vid_capt.release()
     inp.release()
     cv2.destroyAllWindows()
+    client.disconnect()
 
 def main():
     """
