@@ -45,7 +45,7 @@ MQTT_HOST = IPADDRESS
 MQTT_PORT = 3001
 MQTT_KEEPALIVE_INTERVAL = 60
 
-DEBUG = True #helper variable
+DEBUG = False #helper variable
 FRAMERATE = Tracked_Person.FRAMERATE
 
 #NOTE Only applicable in the case of OPENVino version 2019R3 and lower
@@ -103,6 +103,13 @@ def preprocess_frame(frame, width, height):
     frame = cv2.resize(frame, (width, height))
     frame = frame.transpose((2,0,1))
     return frame.reshape(1, 3, width, height)
+
+def preprocess_frame2(frame, width, height):
+    '''
+    Preprocess the image to fit the model
+    '''
+
+    return cv2.resize(frame, (width, height))
 
 def getDistance(x1, y1, centroid):
     x2, y2 = centroid
@@ -176,7 +183,7 @@ def remove_persons(persons, counter):
         print("-------------------------")
     return 
 
-def update_persons2(persons, tracked_list, counter, total_persons):
+def update_persons2(persons, tracked_list, counter):
     '''
         Updates the person's list with any new person that was detected
         and returns the number of persons that were deleted, based
@@ -195,13 +202,12 @@ def update_persons2(persons, tracked_list, counter, total_persons):
                 print(p.toString())
                 print("person's centroid: ", p.getCentroid())
             counted_persons = 1
-            total_persons+=1
     else:
-        counted_persons = 0
+
         #first check for the tracked persons, if we can update it to new location
         for person in persons:
             if len(tracked_list)>0 and person.isTracked():
-                counted_persons+=1
+
                 #check if the person is too long (above 15 secs) in the scene
                 time_in_scene = (counter-person.getFrameIn())/FRAMERATE
                 if DEBUG:
@@ -260,7 +266,6 @@ def update_persons2(persons, tracked_list, counter, total_persons):
             y2 = tracked_list[i][3]
             p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2, frame_in=counter)
             persons.append(p)
-            total_persons+=1
             if DEBUG:
                 print(p.toString())
                 print("person's centroid: ", p.getCentroid())       
@@ -269,7 +274,7 @@ def update_persons2(persons, tracked_list, counter, total_persons):
     remove_persons(persons, counter)
     if DEBUG:
         print("**************************** in update persons2 counted_persons:", counted_persons)
-    return counted_persons, total_persons
+    return
 
 def update_persons(persons, tracked_list):
     tmp_list = []
@@ -329,10 +334,10 @@ def update_persons(persons, tracked_list):
             persons.append(tmp_p)
     
 
-def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, persons, total_persons):
+def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, persons):
     timestamp = counter/10
     tracked_list = []
-    counted_persons = 0
+
     for fr in out_frame:
         if (fr[0][0][0] == -1): #if we have not detected anything, we break out
             break
@@ -352,12 +357,12 @@ def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, per
                 print("--------------------------")
             tracked_list.append([x1, y1, x2, y2])
             #update_persons(persons, tracked_list) #function does not work well, kept for referencing
-            counted_persons, total_persons = update_persons2(persons, tracked_list, counter, total_persons)
+            update_persons2(persons, tracked_list, counter)
 
             #cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
             draw_boxes(in_frame, persons)
             
-    return in_frame, total_persons, counted_persons
+    return in_frame
 
 def infer_on_stream(args, client):
     """
@@ -414,7 +419,7 @@ def infer_on_stream(args, client):
         vid_capt = None
     else:
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        vid_capt = cv2.VideoWriter('output_video.mp4', fourcc, 25, (width,height))
+        vid_capt = cv2.VideoWriter('output_video_' + args.model + '_' + args.device + '.mp4', fourcc, 25, (width,height))
 
 
     request_id = 0
@@ -435,7 +440,10 @@ def infer_on_stream(args, client):
             break 
         counter +=1
     ### TODO: Pre-process the image as needed ###
+        if True:
+            print("------------------------------",(net_input_shape))
         prep_frame = preprocess_frame(frame, net_input_shape[2], net_input_shape[3])
+
     ### TODO: Start asynchronous inference for specified request ###
         infer_network.exec_net(image=prep_frame,request_id=request_id)
         ### TODO: Wait for the result ###
@@ -444,30 +452,38 @@ def infer_on_stream(args, client):
             #if DEBUG:
                 #print(output)
             ### TODO: Get the results of the inference request ###
-            out_frame, total_persons, counted_persons = get_results(frame, output, counter, prob_threshold, width, height, persons, total_persons)
+            out_frame = get_results(frame, output, counter, prob_threshold, width, height, persons)
             ### TODO: Extract any desired stats from the results ###
             vid_capt.write(out_frame)
             ### TODO: Calculate and send relevant information on ###
             ### current_count, total_count and duration to the MQTT server ###
             ### Topic "person": keys of "count" and "total" ###
             ### Topic "person/duration": key of "duration" ###
+            total_persons=0
+            
+            if len(persons) > 0:
+                total_persons = (persons[-1]).getPersonId()+1
+                            
+            counted_persons = 0
+            time = 0
+            for p in persons:
+                if p.isTracked():
+                    counted_persons+=1
+                    time = (counter-p.getFrameIn())/10
+            if DEBUG:
+                print("for person: ", p.toString(), " the time spent is: ", time)
+            client.publish("person", json.dumps({"count":counted_persons, "total":total_persons}))
+            client.publish("person/duration", json.dumps({"duration":time}))
             
             if DEBUG:
                 print('======== MQTT ===========')
                 print("count: ", counted_persons)
                 print("total_count: ", total_persons)
-            client.publish("person", json.dumps({"count":counted_persons, "total":total_persons}))
-            for person in persons:
-                if person.isTracked():
-                    time = (counter-person.getFrameIn())/10
-                    if DEBUG:
-                        print("for person: ", person.toString(), " the time spent is: ", time)
-                    client.publish("person/duration", json.dumps({"duration":time}))
-            
+   
         
         ### TODO: Send the frame to the FFMPEG server ###
-        sys.stdout.buffer.write(out_frame)
-        sys.stdout.flush()
+        #sys.stdout.buffer.write(out_frame)
+        #sys.stdout.flush()
         ### TODO: Write an output image if `single_image_mode` ###
     vid_capt.release()
     inp.release()
@@ -481,7 +497,7 @@ def main():
     :return: None
     """
     dt = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    fw = open("run_metrics_" + dt + ".txt", 'w')
+
     #to calculate execution time
     start_time = time.time()
     # Grab command line args
@@ -494,17 +510,20 @@ def main():
     infer_on_stream(args, client)
 
     mem = memory_usage()
-        
+    model = (args.model.split('/')[-1])[:-4] #model name
+    fw = open("run_metrics_" + dt + model+ '_' + args.device + ".txt", 'w')
     elapsed_time = time.time() - start_time
-    fw.write("=========================================\n")
-    fw.write("=============== run metrics =============\n")
-    fw.write("=========================================\n")
-    fw.write("|execution time (secs): |" + '{:07.3f}'.format(elapsed_time) + '\t|\n')
-    fw.write("|memory used (Mb): \t|" + str(mem) + '\t|\n')
-    fw.write("=========================================")
+    fw.write("=================================================\n")
+    fw.write("=================== run metrics =================\n")
+    fw.write("=================================================\n")
+    fw.write("|model: \t\t|" + model + '\t|\n')
+    fw.write("|device: \t\t|" + str(args.device) + '\t\t\t|\n')
+    fw.write("|prob threshold: \t|" + str(args.prob_threshold) + '\t\t\t|\n')
+    fw.write("|execution time (secs): |" + '{:07.3f}'.format(elapsed_time) + '\t\t|\n')
+    fw.write("|memory used (Mb): \t|" + str(mem) + '\t\t|\n')
+    fw.write("=================================================") 
 
     fw.close()
-
 
 if __name__ == '__main__':
     main()
