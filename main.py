@@ -419,7 +419,8 @@ def infer_on_stream(args, client):
         vid_capt = None
     else:
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        vid_capt = cv2.VideoWriter('output_video_' + args.model + '_' + args.device + '.mp4', fourcc, 25, (width,height))
+        model = (args.model.split('/')[-1])[:-4] #model name
+        vid_capt = cv2.VideoWriter('output_video_' + model + '_' + args.device + '_' + str(prob_threshold) + '.mp4', fourcc, 25, (width,height))
 
 
     request_id = 0
@@ -440,7 +441,7 @@ def infer_on_stream(args, client):
             break 
         counter +=1
     ### TODO: Pre-process the image as needed ###
-        if True:
+        if DEBUG:
             print("------------------------------",(net_input_shape))
         prep_frame = preprocess_frame(frame, net_input_shape[2], net_input_shape[3])
 
@@ -511,7 +512,7 @@ def main():
 
     mem = memory_usage()
     model = (args.model.split('/')[-1])[:-4] #model name
-    fw = open("run_metrics_" + dt + model+ '_' + args.device + ".txt", 'w')
+    fw = open("run_metrics_" + dt + '_' + model+ '_' + args.device + '_' + str(args.prob_threshold) + ".txt", 'w')
     elapsed_time = time.time() - start_time
     fw.write("=================================================\n")
     fw.write("=================== run metrics =================\n")

@@ -1,14 +1,11 @@
 python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/ssd_v2_support.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/
 
-python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/faster_rcnn_support.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/
+python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/faster_rcnn_support.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/ 
 
 python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --transformations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/faster_rcnn_support.json --input_checkpoint checkpoint -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/ --input_shape [1,1200,1200,3]
 
 
-python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/rfcn_support_api_v1.10.json  -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/ --input_shape [1200,1200]
-
-
-
+python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/rfcn_support_api_v1.10.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/ --input_shape [1,1200,1200,3]
 
 ------------------------------------------------------------------------------
 
@@ -36,3 +33,11 @@ python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/rfcn_resnet10
 python main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/frozen_inference_graph.xmll -l /opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/libcpu_extension_sse4.so -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm
 
 source /opt/intel/openvino/bin/setupvars.sh
+
+cd webservice/server/node-server
+node ./server.js
+
+cd webservice/ui
+npm run dev
+
+sudo ffserver -f ./ffmpeg/server.conf
