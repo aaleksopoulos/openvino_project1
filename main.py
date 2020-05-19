@@ -183,7 +183,7 @@ def remove_persons(persons, counter):
         print("-------------------------")
     return 
 
-def update_persons2(persons, tracked_list, counter):
+def update_persons(persons, tracked_list, counter):
     '''
         Updates the person's list with any new person that was detected
         and returns the number of persons that were deleted, based
@@ -324,7 +324,7 @@ def infer_on_stream(args, client):
         print("model_xml: ", args.model)        
 
     ### TODO: Load the model through `infer_network` ###
-    infer_network.load_model(device=args.device, model_xml=args.model, cpu_extension=None)
+    infer_network.load_model(device=args.device, model_xml=args.model, cpu_extension=args.cpu_extension)
     ### TODO: Handle the input stream ###
     isImage = None #placeholder to check if we have an image of video input
     if (args.input).lower()=='cam':

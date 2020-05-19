@@ -86,7 +86,7 @@ class Network:
         #if there are any unsupported layers, add CPU extension, if avaiable
         if (len(unsupported_layers)>0) and (device=='CPU'):
             print("There are unsupported layers found, will try to add CPU extension...")
-            self.core.add_extension(cpu_extension=cpu_extension, device=device)
+            self.core.add_extension(extension_path=cpu_extension, device=device)
 
         #add, if provided, a cpu extension
         if (cpu_extension):
