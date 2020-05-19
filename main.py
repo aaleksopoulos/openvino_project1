@@ -47,6 +47,7 @@ MQTT_KEEPALIVE_INTERVAL = 60
 
 DEBUG = False #helper variable
 FRAMERATE = Tracked_Person.FRAMERATE
+MAX_PEOPLE_IN_FRAME = 10 #if more than 10 persons are detected, show a warning
 
 #NOTE Only applicable in the case of OPENVino version 2019R3 and lower
 if (platform.system() == 'Windows'):
@@ -126,17 +127,23 @@ def getDistance(x1, y1, centroid):
 
 def draw_boxes(in_frame, persons):
     
+    counter = 0 #count the number of persons in the frame
     for p in persons:
         if p.isTracked():
+            counter+=1
             if p.hasAlert(): #if the user has an alert, it will have a red frame around him
                 color=(0,0,255)
             else:
                 color = (0,255,255)
             cv2.rectangle(in_frame, (p.getX1(),p.getY1()), (p.getX2(),p.getY2()), color,1)
+
             if DEBUG:
                 print("len of persons list: ", len(persons))
                 if p.isTracked():
                     cv2.putText(img=in_frame, text=p.toString(), org=p.getCentroid(), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=color, thickness=1)
+    #if there are more people than MAX_PEOPLE_IN_FRAME, we will show a text
+    if counter >= MAX_PEOPLE_IN_FRAME:
+        cv2.putText(img=in_frame, text="WARNING!" + str(counter) + " PEOPLE DETECTED!", org=(30,30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2)
 
 def remove_persons(persons, counter):
     persons_to_remove = [] #placeholder

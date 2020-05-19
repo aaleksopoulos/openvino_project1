@@ -97,12 +97,13 @@ class Network:
         if (len(unsupported_layers)>0):
             print("After adding CPU extension, there are still unsupported layers, exiting...")
             exit(1)
-
+        
         #load to network to get the executable network
         self.exec_network = self.core.load_network(self.network, device)
 
         #get the input and output blobs
         self.input_blob = next(iter(self.network.inputs))
+        #print('------------------------------------- input_blob : ', self.input_blob)
         self.output_blob = next(iter(self.network.outputs))
 
         return self.exec_network
