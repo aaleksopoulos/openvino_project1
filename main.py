@@ -105,13 +105,6 @@ def preprocess_frame(frame, width, height):
     frame = frame.transpose((2,0,1))
     return frame.reshape(1, 3, width, height)
 
-def preprocess_frame2(frame, width, height):
-    '''
-    Preprocess the image to fit the model
-    '''
-
-    return cv2.resize(frame, (width, height))
-
 def getDistance(x1, y1, centroid):
     x2, y2 = centroid
     dist = sqrt( pow((x2-x1),2) + pow((y1-y2),2) )
@@ -277,69 +270,11 @@ def update_persons2(persons, tracked_list, counter):
                 print(p.toString())
                 print("person's centroid: ", p.getCentroid())       
     #we could use the following fuction in order to remove some persons
-    # that are not in frame for 85 secs (as stated in the Tracked_Persons class)    
+    # that are not in frame for 45 secs (as stated in the Tracked_Persons class)    
     remove_persons(persons, counter)
     if DEBUG:
         print("**************************** in update persons2 counted_persons:", counted_persons)
     return
-
-def update_persons(persons, tracked_list):
-    tmp_list = []
-    for item in tracked_list:
-        x1 = item[0]
-        y1 = item[1]
-        x2 = item[2]
-        y2 = item[3]
-        if DEBUG:
-            print("------ in update person -------")
-            print(" x1: ", x1)
-            print(" x2: ", x2)
-            print(" y1: ", y1)
-            print(" y2: ", y2)
-            print("-------------------------------")
-        if len(persons)==0:
-            p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2)
-            persons.append(p)
-            if DEBUG:
-                print(p.toString())
-                print("person's centroid: ", p.getCentroid())
-        else:
-            for person in persons:
-                if person.isTracked():
-                    dist = getDistance((x1+x2)/2, (y1+y2)/2, person.getCentroid())
-                    if DEBUG:
-                        print("dist: ",dist)
-                    if dist<80: #number got from the current data
-                        person.setX1(x1)
-                        person.setX2(x2)
-                        person.setY1(y1)
-                        person.setY2(y2)
-                        person.updateCentroid()
-                        if DEBUG:
-                            if (x1==person.getX1()) and (x2==person.getX2()) and (y1==person.getY1()) and (y2==person.getY2()):
-                                print("person updated succesfully")
-                            else:
-                                print("values are not updated correcty")
-                                print("calucalated x1: ", x1)
-                                print("calucalated x2: ", x2)
-                                print("calucalated y1: ", y1)
-                                print("calucalated y2: ", y2)
-                                print("person x1: ", person.getX1())
-                                print("person x2: ", person.getX2())
-                                print("person y1: ", person.getY1())
-                                print("person y2: ", person.getY2())
-                    else:
-                        person.setTracked(False)
-                        p = Tracked_Person(x1=x1, x2=x2, y1=y1, y2=y2)
-                        tmp_list.append(p)
-                        if DEBUG:
-                            print(p.toString())
-                            print("len of tmp_list: ", len(tmp_list))
-
-    if (len(tmp_list)!=0):
-        for tmp_p in tmp_list:
-            persons.append(tmp_p)
-    
 
 def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, persons):
     timestamp = counter/10
@@ -363,10 +298,8 @@ def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, per
                 print("calucalated y2: ", y2)
                 print("--------------------------")
             tracked_list.append([x1, y1, x2, y2])
-            #update_persons(persons, tracked_list) #function does not work well, kept for referencing
-            update_persons2(persons, tracked_list, counter)
+            update_persons(persons, tracked_list, counter)
 
-            #cv2.rectangle(in_frame, (x1, y1), (x2,y2), (0,255,255),1)
             draw_boxes(in_frame, persons)
             
     return in_frame

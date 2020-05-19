@@ -103,7 +103,6 @@ class Network:
 
         #get the input and output blobs
         self.input_blob = next(iter(self.network.inputs))
-        #print('------------------------------------- input_blob : ', self.input_blob)
         self.output_blob = next(iter(self.network.outputs))
 
         return self.exec_network
