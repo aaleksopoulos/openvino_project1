@@ -397,7 +397,7 @@ def infer_on_stream(args, client):
     if (args.input).lower()=='cam':
         isImage = False
         args.input = 0
-    elif (args.input).endswith('.jpg') or (args.input).endswith('bmp'):
+    elif (args.input).endswith('.jpg') or (args.input).endswith('.bmp'):
         isImage = True #input is image
     else:
         isImage = False #we have a video stream as input
@@ -490,10 +490,15 @@ def infer_on_stream(args, client):
    
         
         ### TODO: Send the frame to the FFMPEG server ###
-        #sys.stdout.buffer.write(out_frame)
-        #sys.stdout.flush()
+        sys.stdout.buffer.write(out_frame)
+        sys.stdout.flush()
         ### TODO: Write an output image if `single_image_mode` ###
-    vid_capt.release()
+        if isImage:
+            cv2.imwrite('output_image' + model + '_' + args.device + '_' + str(prob_threshold) + '.jpg', out_frame)
+    
+    #cleanup the mess
+    if not isImage:
+        vid_capt.release()
     inp.release()
     cv2.destroyAllWindows()
     client.disconnect()
