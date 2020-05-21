@@ -208,14 +208,14 @@ def update_persons(persons, tracked_list, counter):
         for person in persons:
             if len(tracked_list)>0 and person.isTracked():
 
-                #check if the person is too long (above 15 secs) in the scene
+                #check if the person is too long (above 10 secs) in the scene
                 time_in_scene = (counter-person.getFrameIn())/FRAMERATE
                 if DEBUG:
                     print("=============================================================")
                     print("counter: ", counter)
                     print("person.getFrameIn:", person.getFrameIn())
                     print('time_in_scene: ', time_in_scene)
-                    if time_in_scene > 15:
+                    if time_in_scene > 10:
                         print("The person " , person.toString() , " is in scene for " , time_in_scene , ' secs.')
                     print("=============================================================")
                 if time_in_scene > 10:
@@ -273,7 +273,7 @@ def update_persons(persons, tracked_list, counter):
     # that are not in frame for 45 secs (as stated in the Tracked_Persons class)    
     remove_persons(persons, counter)
     if DEBUG:
-        print("**************************** in update persons2 counted_persons:", counted_persons)
+        print("**************************** in update persons counted_persons:", counted_persons)
     return
 
 def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, persons):
@@ -367,9 +367,12 @@ def infer_on_stream(args, client):
     counter = 0
     persons = []
     total_persons = 0
+    buffer_size = 0
+    inference_time = 0
+
     ### TODO: Loop until stream is over ###
     while inp.isOpened():
-        
+      
     ### TODO: Read from the video capture ###
         flag, frame = inp.read()
         if not flag:
@@ -383,6 +386,8 @@ def infer_on_stream(args, client):
     ### TODO: Pre-process the image as needed ###
         if DEBUG:
             print("------------------------------",(net_input_shape))
+        
+        start_inference = time.time()
         prep_frame = preprocess_frame(frame, net_input_shape[2], net_input_shape[3])
 
     ### TODO: Start asynchronous inference for specified request ###
@@ -392,6 +397,7 @@ def infer_on_stream(args, client):
             output = infer_network.get_output(request_id=request_id)
             #if DEBUG:
                 #print(output)
+            inference_time += (time.time()-start_inference)
             ### TODO: Get the results of the inference request ###
             out_frame = get_results(frame, output, counter, prob_threshold, width, height, persons)
             ### TODO: Extract any desired stats from the results ###
@@ -404,17 +410,17 @@ def infer_on_stream(args, client):
             
             if len(persons) > 0:
                 total_persons = (persons[-1]).getPersonId()+1
-                            
+            
             counted_persons = 0
-            time = 0
+            p_time = 0
             for p in persons:
                 if p.isTracked():
                     counted_persons+=1
-                    time = (counter-p.getFrameIn())/10
+                    p_time = (counter-p.getFrameIn())/FRAMERATE
             if DEBUG:
-                print("for person: ", p.toString(), " the time spent is: ", time)
+                print("for person: ", p.toString(), " the time spent is: ", p_time)
             client.publish("person", json.dumps({"count":counted_persons, "total":total_persons}))
-            client.publish("person/duration", json.dumps({"duration":time}))
+            client.publish("person/duration", json.dumps({"duration":p_time}))
             
             if DEBUG:
                 print('======== MQTT ===========')
@@ -424,7 +430,9 @@ def infer_on_stream(args, client):
         
         ### TODO: Send the frame to the FFMPEG server ###
         sys.stdout.buffer.write(out_frame)
+        buffer_size += sys.getsizeof(out_frame)
         sys.stdout.flush()
+
         ### TODO: Write an output image if `single_image_mode` ###
         if isImage:
             cv2.imwrite('output_image' + model + '_' + args.device + '_' + str(prob_threshold) + '.jpg', out_frame)
@@ -435,6 +443,9 @@ def infer_on_stream(args, client):
     inp.release()
     cv2.destroyAllWindows()
     client.disconnect()
+
+    #update stats array
+    return buffer_size, inference_time
 
 def main():
     """
@@ -453,21 +464,24 @@ def main():
     # Connect to the MQTT server
     client = connect_mqtt()
     # Perform inference on the input stream
-    infer_on_stream(args, client)
+    buffer_size, inference_time = infer_on_stream(args, client)
 
     mem = memory_usage()
+    buffer_size = buffer_size/pow(1024,2) #convert to Mb
     model = (args.model.split('/')[-1])[:-4] #model name
     fw = open("run_metrics_" + dt + '_' + model+ '_' + args.device + '_' + str(args.prob_threshold) + ".txt", 'w')
     elapsed_time = time.time() - start_time
-    fw.write("=================================================\n")
-    fw.write("=================== run metrics =================\n")
-    fw.write("=================================================\n")
-    fw.write("|model: \t\t|" + model + '\t|\n')
-    fw.write("|device: \t\t|" + str(args.device) + '\t\t\t|\n')
-    fw.write("|prob threshold: \t|" + str(args.prob_threshold) + '\t\t\t|\n')
-    fw.write("|execution time (secs): |" + '{:07.3f}'.format(elapsed_time) + '\t\t|\n')
-    fw.write("|memory used (Mb): \t|" + str(mem) + '\t\t|\n')
-    fw.write("=================================================") 
+    fw.write("=========================================================\n")
+    fw.write("======================= run metrics =====================\n")
+    fw.write("=========================================================\n")
+    fw.write("|model: \t\t\t|" + model + '\t|\n')
+    fw.write("|device: \t\t\t|" + str(args.device) + '\t\t\t|\n')
+    fw.write("|prob threshold: \t\t|" + str(args.prob_threshold) + '\t\t\t|\n')
+    fw.write("|execution time (secs): \t|" + '{:07.3f}'.format(elapsed_time) + '\t\t|\n')
+    fw.write("|inference time (secs): \t|" + '{:07.3f}'.format(inference_time) + '\t\t|\n')
+    fw.write("|memory used (Mb): \t\t|" + '{:07.3f}'.format(mem) + '\t\t|\n')
+    fw.write("|data sent to ffserveer (Mb): \t|" + '{:07.3f}'.format(buffer_size) + '\t\t|\n')
+    fw.write("=========================================================") 
 
     fw.close()
 
