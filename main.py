@@ -201,7 +201,7 @@ def update_persons(persons, tracked_list, counter):
             if DEBUG:
                 print(p.toString())
                 print("person's centroid: ", p.getCentroid())
-            counted_persons = 1
+
     else:
 
         #first check for the tracked persons, if we can update it to new location
@@ -245,7 +245,7 @@ def update_persons(persons, tracked_list, counter):
                 if DEBUG:
                     print("min_centr_dist: ", min_centr_dist)
                     print("index of it: ", min_pos)
-                if min_centr_dist<80: #the value was obtained based on current video input
+                if min_centr_dist<95: #the value was obtained based on current video input
                     person.setX1(x1)
                     person.setX2(x2)
                     person.setY1(y1)
@@ -272,8 +272,7 @@ def update_persons(persons, tracked_list, counter):
     #we could use the following fuction in order to remove some persons
     # that are not in frame for 45 secs (as stated in the Tracked_Persons class)    
     remove_persons(persons, counter)
-    if DEBUG:
-        print("**************************** in update persons counted_persons:", counted_persons)
+
     return
 
 def get_results(in_frame, out_frame, counter, prob_threshold, widht, height, persons):
@@ -417,8 +416,8 @@ def infer_on_stream(args, client):
                 if p.isTracked():
                     counted_persons+=1
                     p_time = (counter-p.getFrameIn())/FRAMERATE
-            if DEBUG:
-                print("for person: ", p.toString(), " the time spent is: ", p_time)
+                if DEBUG:
+                    print("for person: ", p.toString(), " the time spent is: ", p_time)
             client.publish("person", json.dumps({"count":counted_persons, "total":total_persons}))
             client.publish("person/duration", json.dumps({"duration":p_time}))
             
@@ -471,17 +470,20 @@ def main():
     model = (args.model.split('/')[-1])[:-4] #model name
     fw = open("run_metrics_" + dt + '_' + model+ '_' + args.device + '_' + str(args.prob_threshold) + ".txt", 'w')
     elapsed_time = time.time() - start_time
-    fw.write("=========================================================\n")
-    fw.write("======================= run metrics =====================\n")
-    fw.write("=========================================================\n")
-    fw.write("|model: \t\t\t|" + model + '\t|\n')
-    fw.write("|device: \t\t\t|" + str(args.device) + '\t\t\t|\n')
-    fw.write("|prob threshold: \t\t|" + str(args.prob_threshold) + '\t\t\t|\n')
-    fw.write("|execution time (secs): \t|" + '{:07.3f}'.format(elapsed_time) + '\t\t|\n')
-    fw.write("|inference time (secs): \t|" + '{:07.3f}'.format(inference_time) + '\t\t|\n')
-    fw.write("|memory used (Mb): \t\t|" + '{:07.3f}'.format(mem) + '\t\t|\n')
-    fw.write("|data sent to ffserveer (Mb): \t|" + '{:07.3f}'.format(buffer_size) + '\t\t|\n')
-    fw.write("=========================================================") 
+    fw.write("=================================================================\n")
+    fw.write("=========================== run metrics =========================\n")
+    fw.write("=================================================================\n")
+    if 'ssdlite' in model:
+        fw.write("|model: \t\t\t|" + model + '\t|\n')
+    else:
+        fw.write("|model: \t\t\t|" + model + '\t\t|\n')
+    fw.write("|device: \t\t\t|" + str(args.device) + '\t\t\t\t|\n')
+    fw.write("|prob threshold: \t\t|" + str(args.prob_threshold) + '\t\t\t\t|\n')
+    fw.write("|execution time (secs): \t|" + '{:07.3f}'.format(elapsed_time) + '\t\t\t|\n')
+    fw.write("|inference time (secs): \t|" + '{:07.3f}'.format(inference_time) + '\t\t\t|\n')
+    fw.write("|memory used (Mb): \t\t|" + '{:07.3f}'.format(mem) + '\t\t\t|\n')
+    fw.write("|data sent to ffserveer (Mb): \t|" + '{:07.3f}'.format(buffer_size) + '\t\t\t|\n')
+    fw.write("=================================================================") 
 
     fw.close()
 

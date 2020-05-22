@@ -130,5 +130,5 @@ class Network:
         ### TODO: Extract and return the output results
         ### Note: You may need to update the function parameters. ###
         result = self.exec_network.requests[request_id].outputs[self.output_blob]
-        #print(self.exec_network.requests[request_id].latency)
+        #print('---------------------------------------- latency:', self.exec_network.requests[request_id].latency)
         return result
