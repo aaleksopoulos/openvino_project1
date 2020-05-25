@@ -140,11 +140,18 @@ Finally, it would be worthy to make another comparison, between those models. Th
 | memory used (Mb) |        158.6      |        121.9       |          160.3        |         143.0        |
 | data sent to ffserver (Mb)|        1323.4       |        1323.4       |          1323.4         |         1323.4         |
 
+#### Limitations of Each Model
+
+As a general rule, all models worked well and were able to identify the persons, even with the default setting of 0.6 as a probability threshold. One difference, as it can easily be stated from the table above is that the ssd_mobilenet_v2_coco in comparison with the ssd_mobilenet_v1_coco performed better in terms of memory requirements, but it was a bit slower. 
+
+If we compare the v2 models, we can see that the the faster one was the the ssdlite model, although it had the highest memory requirements. The inception on had the slower execution time, while the mobilenet had the lowerst memory requirements, and a good balance in terms of execution time.
+
+One other thing that was important is that, although as it was stated, all the persons were tracked, the bounding boxes were not the same. So, attention had to be payed in the tracking algorithm. For example, when the 3rd person walked away of the stand, the bounding box of the ssdlite model was quite bigger than the other models, so the centroid distance was bigger and the algorithm counted that as an extra person. So some callibration had to be made.
+
+
 ## Assess Model Use Cases
 
- 
-
-Such an app could be suitable in many cases. First of all, in stores it could be usefull since the owner of the managers can be aware not only on the ammount of customers that they have at a certain time, but also if - for any case - many customers prefer certain places of their store. So they can make arrangements on their placing of their products, or even arrange product ordering in case a certain area seems to attract more people so they are not run out. Simirarly, they can arrange to place their staff to accomodate the customers.
+ Such an app could be suitable in many cases. First of all, in stores it could be usefull since the owner of the managers can be aware not only on the ammount of customers that they have at a certain time, but also if - for any case - many customers prefer certain places of their store. So they can make arrangements on their placing of their products, or even arrange product ordering in case a certain area seems to attract more people so they are not run out. Simirarly, they can arrange to place their staff to accomodate the customers.
 
  
 
