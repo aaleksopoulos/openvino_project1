@@ -1,0 +1,36 @@
+============================================================
+|            model             |   ssd_mobilenet_v1_coco   |
+|            device            |            CPU            |
+|        prob threshold        |            0.6            |
+|    execution time (secs)     |          153.394          |
+|    inference time (secs)     |          050.277          |
+|       memory used (Mb)       |          161.191          |
+| data sent to ffserveer (Mb)  |         1323.381          |
+============================================================
+============================================================
+|            model             |   ssd_mobilenet_v2_coco   |
+|            device            |            CPU            |
+|        prob threshold        |            0.6            |
+|    execution time (secs)     |          167.299          |
+|    inference time (secs)     |          064.007          |
+|       memory used (Mb)       |          125.797          |
+| data sent to ffserveer (Mb)  |         1323.381          |
+============================================================
+============================================================
+|            model             | ssdlite_mobilenet_v2_coco |
+|            device            |            CPU            |
+|        prob threshold        |            0.6            |
+|    execution time (secs)     |          127.895          |
+|    inference time (secs)     |          026.867          |
+|       memory used (Mb)       |          163.926          |
+| data sent to ffserveer (Mb)  |         1323.381          |
+============================================================
+============================================================
+|            model             |   ssd_inception_v2_coco   |
+|            device            |            CPU            |
+|        prob threshold        |            0.6            |
+|    execution time (secs)     |          203.440          |
+|    inference time (secs)     |          105.959          |
+|       memory used (Mb)       |          144.961          |
+| data sent to ffserveer (Mb)  |         1323.381          |
+============================================================

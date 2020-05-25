@@ -38,6 +38,8 @@ from datetime import datetime
 
 import platform
 
+import fnmatch, glob, traceback, errno, sys, atexit, locale, imp
+
 # MQTT server environment variables
 HOSTNAME = socket.gethostname()
 IPADDRESS = socket.gethostbyname(HOSTNAME)
@@ -49,13 +51,16 @@ DEBUG = False #helper variable
 FRAMERATE = Tracked_Person.FRAMERATE
 MAX_PEOPLE_IN_FRAME = 10 #if more than 10 persons are detected, show a warning
 
-#NOTE Only applicable in the case of OPENVino version 2019R3 and lower
-if (platform.system() == 'Windows'):
-    CPU_EXTENSION = "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\inference_engine\\bin\intel64\Release\cpu_extension_avx2.dll"
-elif (platform.system() == 'Darwin'): #MAC
-    CPU_EXTENSION = "/opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/libcpu_extension.dylib"
-else: #Linux, only the case of sse
-    CPU_EXTENSION = "/opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/libcpu_extension_sse4.so"
+def get_cpu_extension():
+    #NOTE Only applicable in the case of OPENVino version 2019R3 and lower
+    #TODO check it on system with openvino < 2019R3 to check for the AVX type, although the SSE one can be used in AVX systems
+    if (platform.system() == 'Windows'):
+        CPU_EXTENSION = "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\inference_engine\\bin\intel64\Release\cpu_extension_avx2.dll"
+    elif (platform.system() == 'Darwin'): #MAC
+        CPU_EXTENSION = "/opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/libcpu_extension.dylib"
+    else: #Linux, only the case of sse
+        CPU_EXTENSION = "/opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/libcpu_extension_sse4.so"
+    return CPU_EXTENSION
 
 def memory_usage():
     # return the memory usage in MB
@@ -78,7 +83,7 @@ def build_argparser():
                         default=None,
                         help="MKLDNN (CPU)-targeted custom layers."
                              "Absolute path to a shared library with the"
-                             "kernels impl.")
+                             "kernels impl. If set to auto, program will try to find out the extension, based on the system.")
     parser.add_argument("-d", "--device", type=str, default="CPU",
                         help="Specify the target device to infer on: "
                              "CPU, GPU, FPGA or MYRIAD is acceptable. Sample "
@@ -87,6 +92,9 @@ def build_argparser():
     parser.add_argument("-pt", "--prob_threshold", type=float, default=0.5,
                         help="Probability threshold for detections filtering"
                         "(0.5 by default)")
+    parser.add_argument("-rt", "--request_type", type=str, default='sync',
+                        help="To set if we want synchronous or asynchronous requests. Type 'async' to run asynchronous, else it will run synchronously"
+                        "defult is sync")
     return parser
 
 
@@ -321,9 +329,14 @@ def infer_on_stream(args, client):
         print("probability threshold: ", prob_threshold)
         print("device: ", args.device)
         print("model_xml: ", args.model)        
+    
+    if args.cpu_extension == 'auto':
+        cpu_extension = get_cpu_extension()
+    else:
+        cpu_extension = args.cpu_extension
 
     ### TODO: Load the model through `infer_network` ###
-    infer_network.load_model(device=args.device, model_xml=args.model, cpu_extension=args.cpu_extension)
+    infer_network.load_model(device=args.device, model_xml=args.model, cpu_extension=cpu_extension)
     ### TODO: Handle the input stream ###
     isImage = None #placeholder to check if we have an image of video input
     if (args.input).lower()=='cam':
@@ -388,14 +401,20 @@ def infer_on_stream(args, client):
         
         start_inference = time.time()
         prep_frame = preprocess_frame(frame, net_input_shape[2], net_input_shape[3])
+        
+        #if we want to run async, the request_is equals counter
+        if args.request_type=='async':
+            request_id = counter
+            if DEBUG:
+                print('-------------------request id:', request_id)
 
     ### TODO: Start asynchronous inference for specified request ###
         infer_network.exec_net(image=prep_frame,request_id=request_id)
         ### TODO: Wait for the result ###
         if infer_network.wait(request_id=request_id)==0:
             output = infer_network.get_output(request_id=request_id)
-            #if DEBUG:
-                #print(output)
+            if DEBUG:
+                print('output is:', output)
             inference_time += (time.time()-start_inference)
             ### TODO: Get the results of the inference request ###
             out_frame = get_results(frame, output, counter, prob_threshold, width, height, persons)
@@ -409,6 +428,8 @@ def infer_on_stream(args, client):
             
             if len(persons) > 0:
                 total_persons = (persons[-1]).getPersonId()+1
+                if DEBUG:
+                    print("total_persons:", total_persons)
             
             counted_persons = 0
             p_time = 0
@@ -452,8 +473,8 @@ def main():
 
     :return: None
     """
-    dt = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
+    #dt = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    dt = datetime.now().strftime("%Y-%m-%d")
     #to calculate execution time
     start_time = time.time()
     # Grab command line args
@@ -468,22 +489,36 @@ def main():
     mem = memory_usage()
     buffer_size = buffer_size/pow(1024,2) #convert to Mb
     model = (args.model.split('/')[-1])[:-4] #model name
-    fw = open("run_metrics_" + dt + '_' + model+ '_' + args.device + '_' + str(args.prob_threshold) + ".txt", 'w')
     elapsed_time = time.time() - start_time
-    fw.write("=================================================================\n")
-    fw.write("=========================== run metrics =========================\n")
-    fw.write("=================================================================\n")
-    if 'ssdlite' in model:
-        fw.write("|model: \t\t\t|" + model + '\t|\n')
-    else:
-        fw.write("|model: \t\t\t|" + model + '\t\t|\n')
-    fw.write("|device: \t\t\t|" + str(args.device) + '\t\t\t\t|\n')
-    fw.write("|prob threshold: \t\t|" + str(args.prob_threshold) + '\t\t\t\t|\n')
-    fw.write("|execution time (secs): \t|" + '{:07.3f}'.format(elapsed_time) + '\t\t\t|\n')
-    fw.write("|inference time (secs): \t|" + '{:07.3f}'.format(inference_time) + '\t\t\t|\n')
-    fw.write("|memory used (Mb): \t\t|" + '{:07.3f}'.format(mem) + '\t\t\t|\n')
-    fw.write("|data sent to ffserveer (Mb): \t|" + '{:07.3f}'.format(buffer_size) + '\t\t\t|\n')
-    fw.write("=================================================================") 
+
+    #fw = open("run_metrics_" + dt + '_' + model+ '_' + args.device + '_' + str(args.prob_threshold) + ".txt", 'w')
+    #fw.write("=================================================================\n")
+    #fw.write("=========================== run metrics =========================\n")
+    #fw.write("=================================================================\n")
+    #if 'ssdlite' in model:
+    #    fw.write("|model: \t\t\t|" + model + '\t|\n')
+    #else:
+    #    fw.write("|model: \t\t\t|" + model + '\t\t|\n')
+    #fw.write("|device: \t\t\t|" + str(args.device) + '\t\t\t\t|\n')
+    #fw.write("|prob threshold: \t\t|" + str(args.prob_threshold) + '\t\t\t\t|\n')
+    #fw.write("|execution time (secs): \t|" + '{:07.3f}'.format(elapsed_time) + '\t\t\t|\n')
+    #fw.write("|inference time (secs): \t|" + '{:07.3f}'.format(inference_time) + '\t\t\t|\n')
+    #fw.write("|memory used (Mb): \t\t|" + '{:07.3f}'.format(mem) + '\t\t\t|\n')
+    #fw.write("|data sent to ffserveer (Mb): \t|" + '{:07.3f}'.format(buffer_size) + '\t\t\t|\n')
+    #fw.write("=================================================================") 
+
+
+    fw = open("run_metrics_" + dt + '_' + args.request_type + '_' + args.device + '_' + str(args.prob_threshold) + ".txt", 'a')
+    fw.write("="*60 + '\n') 
+    fw.write("|" + '{:^30}'.format('model') + '|' + '{:^27}'.format(model) + '|\n')
+    fw.write("|" + '{:^30}'.format('device') + '|' + '{:^27}'.format(str(args.device)) + '|\n')
+    fw.write("|" + '{:^30}'.format('prob threshold') + '|' + '{:^27}'.format(str(args.prob_threshold)) + '|\n')
+    fw.write("|" + '{:^30}'.format('execution time (secs)') + '|' + '{:^27}'.format('{:07.3f}'.format(elapsed_time)) + '|\n')
+    fw.write("|" + '{:^30}'.format('inference time (secs)') + '|' + '{:^27}'.format('{:07.3f}'.format(inference_time)) + '|\n')
+    fw.write("|" + '{:^30}'.format('memory used (Mb)') + '|' + '{:^27}'.format('{:07.3f}'.format(mem)) + '|\n')
+    fw.write("|" + '{:^30}'.format('data sent to ffserveer (Mb)') + '|' + '{:^27}'.format('{:07.3f}'.format(buffer_size)) + '|\n')
+    fw.write("="*60+'\n') 
+
 
     fw.close()
 
