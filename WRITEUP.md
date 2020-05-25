@@ -73,16 +73,48 @@ The field of computer vision, and AI in general, is expanding rapidly. Many new 
 
 ## Comparing Model Performance
 
- 
-
-In this project, the following four models were chosen from the tensorflow model zoo.
+ In this project, the following four models were chosen from the tensorflow model zoo.
 
 1. [ssd_mobilenet_v1_coco](http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v1_coco_2018_01_28.tar.gz)
 2. [ssd_mobilenet_v2_coco](http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v2_coco_2018_03_29.tar.gz)
 3. [ssdlite_mobilenet_v2_coco](http://download.tensorflow.org/models/object_detection/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz)
 4. [ssd_inception_v2_coco](http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz)
 
-At first we will compare the use of those models, in respect of the performance with and without the use of OpenVINO. Two metrics were user, model size and the time it took for each model to complete inference in the video it was provided to us. The results are shown in the tables that follow
+Before continuing on project performance, let's firts provide the code on how to convert those models in Intermediate Representation format, which is needed to run the analysis with the OpenVINO toolkit. In all the cases, the first step is to untar the model and enter the folder. The procedure will be presented for each model seperately, and we will suppose that we already have a bash window open in the folder that we downloaded them. Also, it must be noted that for the output folder was used a path in order to include those intermediate represenations to the project folder, which is specific for my system.
+
+1. ssd_mobilenet_v1_coco
+
+```
+tar -xvzf ssd_mobilenet_v1_coco_2018_01_28.tar.gz 
+cd ssd_mobilenet_v1_coco_2018_01_28/
+python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/ssd_support.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/
+```
+
+2. ssd_mobilenet_v2_coco
+
+```
+tar -xvzf ssd_mobilenet_v2_coco_2018_03_29.tar.gz 
+cd ssd_mobilenet_v2_coco_2018_03_29/
+python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/ssd_v2_support.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/
+```
+
+3. ssdlite_mobilenet_v2_coco
+
+```
+tar -xvzf ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz
+cd ssdlite_mobilenet_v2_coco_2018_05_09/
+python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/ssd_v2_support.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/
+```
+
+4. ssd_inception_v2_coco
+
+```
+tar -xvzf ssd_inception_v2_coco_2018_01_28.tar.gz 
+cd ssd_inception_v2_coco_2018_01_28/
+python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/ssd_v2_support.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/
+```
+
+Now, regarding model performance. At first we will compare the use of those models, in respect of the performance with and without the use of OpenVINO. Two metrics were user, model size and the time it took for each model to complete inference in the video it was provided to us. The results are shown in the tables that follow
 
 - Model size
 
