@@ -114,6 +114,59 @@ cd ssd_inception_v2_coco_2018_01_28/
 python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model frozen_inference_graph.pb --tensorflow_object_detection_api_pipeline_config pipeline.config --reverse_input_channels --tensorflow_use_custom_operations_config /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf/ssd_v2_support.json -o /home/atalex/udacity_openvino_exercises/openvino_project1/models/
 ```
 
+It would also be useful to show how to run each model, the commands are shown below. Before running the acutal models some initializations should take place.
+First, we should start the required servers, as per instructions. For each of these commands one BASH window should be open at the project direcotry
+```
+cd webservice/server/node-server
+node ./server.js
+```
+
+```
+cd webservice/ui
+npm run dev
+```
+
+```
+sudo ffserver -f ./ffmpeg/server.conf
+```
+
+If we have not added OpenVINO to PATH, we should initialize it first
+
+```
+source /opt/intel/openvino/bin/setupvars.sh
+```
+Then, we need to run the actual model. For each one, the commands are shown below
+
+1. ssd_mobilenet_v1_coco
+
+```
+python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/ssd_mobilenet_v1_coco.xml -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm
+```
+
+2. ssd_mobilenet_v2_coco
+
+```
+python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/ssd_mobilenet_v2_coco.xml -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm
+```
+
+3. ssdlite_mobilenet_v2_coco
+
+```
+python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/ssdlite_mobilenet_v2_coco.xml -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm
+```
+
+4. ssd_inception_v2_coco
+
+```
+python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/ssd_inception_v2_coco.xml -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm
+```
+
+If we want to run all the models with one command, we could use the following
+
+```
+python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/ssd_mobilenet_v1_coco.xml -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm; python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/ssd_mobilenet_v2_coco.xml -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm; python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/ssdlite_mobilenet_v2_coco.xml -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm; python3 main.py -i resources/Pedestrian_Detect_2_1_1.mp4 -m models/ssd_inception_v2_coco.xml -d CPU -pt 0.6 | ffmpeg -v warning -f rawvideo -pixel_format bgr24 -video_size 768x432 -framerate 24 -i - http://0.0.0.0:3004/fac.ffm; echo "all done"
+```
+
 Now, regarding model performance. At first we will compare the use of those models, in respect of the performance with and without the use of OpenVINO. Two metrics were user, model size and the time it took for each model to complete inference in the video it was provided to us. The results are shown in the tables that follow
 
 - Model size
@@ -128,7 +181,7 @@ Now, regarding model performance. At first we will compare the use of those mode
 
 |  sec       | ssd_mobilenet_v1_coco | ssd_mobilenet_v2_coco | ssdlite_mobilenet_v2_coco | ssd_inception_v2_coco |
 | :----: |         :----:        |         :----:        |           :----:          |         :----:        |
-| with OpenVINO |        48.2       |        56.7       |          32.8         |         130.0        |
+| with OpenVINO |        50.2       |        64.0       |          26.9         |         106.0       |
 | without OpenVINO |        107       |       144.6        |          137.7          |        207.2        |
 
 
@@ -136,8 +189,8 @@ Finally, it would be worthy to make another comparison, between those models. Th
 
 |         | ssd_mobilenet_v1_coco | ssd_mobilenet_v2_coco | ssdlite_mobilenet_v2_coco | ssd_inception_v2_coco |
 | :----: |         :----:        |         :----:        |           :----:          |         :----:        |
-| execution time (sec) |        149.6       |       157.2       |          133.7        |         229.2       |
-| memory used (Mb) |        158.6      |        121.9       |          160.3        |         143.0        |
+| execution time (sec) |        153.4       |       167.2       |          127.9        |         203.4       |
+| memory used (Mb) |        161.2      |        125.8       |          163.9        |         145.0        |
 | data sent to ffserver (Mb)|        1323.4       |        1323.4       |          1323.4         |         1323.4         |
 
 #### Limitations of Each Model
